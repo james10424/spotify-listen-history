@@ -2,6 +2,10 @@ from .auth_server import SpotifyAuth
 import requests
 from .common import *
 import pandas as pd
+from datetime import datetime
+import sqlalchemy as sql
+
+db = sql.create_engine("sqlite:///history.db")
 
 def ensure_auth(f):
     def _ensure(*args, **kwargs):
@@ -35,7 +39,7 @@ class Spotify:
         return r.json()
 
     @staticmethod
-    def get_recent(limit=50):
+    def get_recent(*, limit=50, before=None, after=None):
         """
         return schema:
         {
@@ -59,11 +63,20 @@ class Spotify:
         }
         """
         assert 1 <= limit <= 50
+        assert (before is not None and after is None) or\
+               (after is not None and before is None) or\
+               (before is None and after is None)
         RECENT_ENDPOINT = "me/player/recently-played"
+        time_arg = {}
+        if before is not None:
+            time_arg = {"before": before}
+        if after is not None:
+            time_arg = {"after": after}
         res = Spotify.get(
             f"{SPOTIFY_ENDPOINT}/{RECENT_ENDPOINT}",
             {
-                "limit": limit
+                "limit": limit,
+                **time_arg
             }
         )
         return res
@@ -93,3 +106,25 @@ class Spotify:
                 "duration_ms": item["track"]["duration_ms"],
             }, ignore_index=True)
         return df
+
+    @staticmethod
+    def str_to_time(spotify_time):
+        return datetime.strptime(spotify_time, "%Y-%m-%dT%H:%M:%S.%fZ")
+
+    @staticmethod
+    def str_to_timestamp(spotify_time):
+        return int(Spotify.str_to_time(spotify_time).timestamp())
+
+    @staticmethod
+    def latest_history():
+        query = """
+        SELECT * FROM history ORDER BY played_at_utc DESC LIMIT 1
+        """
+        return pd.read_sql(query, db).iloc[0]
+
+    @staticmethod
+    def oldest_history():
+        query = """
+        SELECT * FROM history ORDER BY played_at_utc LIMIT 1
+        """
+        return pd.read_sql(query, db).iloc[0]
