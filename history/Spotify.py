@@ -1,7 +1,7 @@
 from .auth_server import SpotifyAuth
 import requests
 from .common import *
-import json
+import pandas as pd
 
 def ensure_auth(f):
     def _ensure(*args, **kwargs):
@@ -41,6 +41,7 @@ class Spotify:
         {
             "items": [
                 {
+                    "played_at": ...,
                     "track": {
                         "name": ...,
                         "duration_ms": ...,
@@ -66,3 +67,29 @@ class Spotify:
             }
         )
         return res
+
+    @staticmethod
+    def recent_to_df(recent):
+        """
+        convert output from `get_recent()` to df
+
+        schema:
+        played_at song artist album duration_ms
+        ...       ...  ...    ...   ...
+        """
+        df = pd.DataFrame(columns=[
+            "played_at",
+            "song",
+            "artist",
+            "album",
+            "duration_ms",
+        ])
+        for item in recent["items"]:
+            df = df.append({
+                "played_at": item["played_at"],
+                "song": item["track"]["name"],
+                "artist": item["track"]["album"]["artists"][0]["name"],
+                "album": item["track"]["album"]["name"],
+                "duration_ms": item["track"]["duration_ms"],
+            }, ignore_index=True)
+        return df
