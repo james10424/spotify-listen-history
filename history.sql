@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS history;
 
 CREATE TABLE history (
-    played_at_utc DATE PRIMARY KEY,
+    timestamp DATE,
     song TEXT,
     artist TEXT,
     album TEXT,
